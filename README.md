@@ -1,1 +1,2 @@
-A partial replication scheme for indexing data in air.
+ - A partial replication scheme for indexing data in air.
+ - View the demo at: https://v29ng3tsfg2mkprt7mah45.streamlit.app/
