@@ -1093,9 +1093,12 @@ def main():
         st.markdown("---")
         with st.expander("ℹ️ Understanding the Index Tree Structure"):
             st.markdown(f"""
-            ### How the Index Tree is Organized
-            
-            1. **Index Levels**: The tree has **{tree.num_levels}** levels (Level 0 = ROOT).
+                ### How the Index Tree is Organized
+
+            1. **Index Levels**: The tree has **{tree.num_levels}** index levels (Level 0 = ROOT, Level {tree.num_levels - 1} = leaf index nodes). 
+               The total visual tree depth is **{tree.num_levels + 1}** when including the data bucket level.
+
+            > **Note:** The parameter `k = {tree.num_levels}` counts only index node levels. Data buckets (shown in yellow) are the payload that the index points to, not part of the index structure itself.
             
             2. **Replication**: The top **{r}** levels (Levels 0 to {r-1 if r > 0 else 'none'}) are **replicated** 
                in the broadcast schedule. These appear in light blue.
