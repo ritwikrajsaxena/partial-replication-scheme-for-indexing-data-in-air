@@ -429,9 +429,6 @@ class DistributedIndex:
         self.broadcast_schedule = []
         position = 0
         
-        if not self.nrr: # Handle case where tree is small and has no NRR
-            return
-
         for i, B in enumerate(self.nrr):
             # Add Rep(B)
             rep_segments = self._generate_rep(i)
@@ -500,12 +497,7 @@ class AccessSimulator:
         """Simulate the access protocol for a given target key"""
         steps = []
         step_num = 1
-
-        if not self.schedule:
-             steps.append(AccessStep(step_num=1, action="Error", position=-1, bucket_accessed="None", mode="active", details="Broadcast schedule is empty. Cannot simulate."))
-             return steps
-
-        current_pos = tune_in_position % len(self.schedule)
+        current_pos = tune_in_position % max(1, len(self.schedule))
         
         # Step 1: Initial probe - tune to current bucket
         steps.append(AccessStep(
@@ -750,7 +742,7 @@ class AccessSimulator:
 
 
 # ============================================================================
-# VISUALIZATION (UPDATED)
+# VISUALIZATION
 # ============================================================================
 
 def create_tree_visualization(tree: IndexTree, replication_level: int) -> graphviz.Digraph:
@@ -758,13 +750,8 @@ def create_tree_visualization(tree: IndexTree, replication_level: int) -> graphv
     dot = graphviz.Digraph(comment='Index Tree')
     dot.attr(rankdir='TB')
     dot.attr('node', shape='box', style='rounded')
-
-    # <<< THIS IS THE FIX >>>
-    # Adjust graph attributes to make the tree taller and narrower.
-    # ranksep: Increases vertical distance between levels.
-    # nodesep: Decreases horizontal distance between nodes on the same level.
-    # ratio='compress': Tells the engine to make the drawing compact.
-    dot.attr('graph', ranksep='1.2', nodesep='0.3', ratio='compress')
+    # Add graph attributes for better spacing
+    dot.attr('graph', nodesep='0.5', ranksep='0.75')
     
     def add_node(node: IndexNode, is_replicated: bool):
         color = 'lightblue' if is_replicated else 'lightgreen'
@@ -835,7 +822,7 @@ def calculate_metrics(tree: IndexTree, di: DistributedIndex) -> Dict:
     index_size = sum(n**i for i in range(k))
     
     # Probe wait (approximate)
-    if n > 1 and r < k and n**r > 0:
+    if n > 1 and r < k:
         probe_wait = 0.5 * ((n**(k-r) - 1) / (n - 1) + Data / (n**r))
     else:
         probe_wait = 0.5 * Data
@@ -980,7 +967,7 @@ def main():
     tune_in_position = st.sidebar.number_input(
         "Position where client tunes in",
         min_value=0,
-        max_value=max(0, schedule_length - 1) if schedule_length > 0 else 0,
+        max_value=max(0, schedule_length - 1),
         value=0,
         help="Starting point for demonstrating the access protocol"
     )
@@ -992,11 +979,10 @@ def main():
     available_keys = sorted(set(k for db in tree.data_buckets for k in db.keys))
     
     if available_keys:
-        default_index = min(len(available_keys)//2, len(available_keys)-1) if available_keys else 0
         target_key = st.sidebar.selectbox(
             "Key to search for",
             options=available_keys,
-            index=default_index,
+            index=min(len(available_keys)//2, len(available_keys)-1),
             help="The record the client wants to find"
         )
     else:
@@ -1144,13 +1130,12 @@ def main():
         st.dataframe(styled_df, use_container_width=True, height=400)
         
         st.subheader("Schedule Structure")
-        if di.nrr:
-            st.markdown(f"""
-            The broadcast consists of **{len(di.nrr)}** sections, each containing:
-            - **Rep(B)**: Replicated path from LCA to NRR node (🔵 Light Blue)
-            - **Ind(B)**: Non-replicated index subtree below B (🟢 Light Green)
-            - **Data(B)**: Data buckets indexed by B (🟡 Light Yellow)
-            """)
+        st.markdown(f"""
+        The broadcast consists of **{len(di.nrr)}** sections, each containing:
+        - **Rep(B)**: Replicated path from LCA to NRR node (🔵 Light Blue)
+        - **Ind(B)**: Non-replicated index subtree below B (🟢 Light Green)
+        - **Data(B)**: Data buckets indexed by B (🟡 Light Yellow)
+        """)
         
         # Show sections
         sections = {}
